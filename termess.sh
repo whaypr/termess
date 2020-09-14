@@ -1,7 +1,7 @@
 #! /bin/bash
 
-# Transforms facebook message JSONs into terminal-friendly files
-# Output files can be easily read and searched through with standard terminal tools
+# Transforms Messenger JSONs into terminal-friendly files
+# Generated files can be easily read and searched through with standard terminal tools
 
 
 # CONTINUE PROMPT
@@ -14,9 +14,10 @@ prompt() {
     fi
 }
 
+
 # UNZIP GIVEN ZIP AND CREATE DIRECTORY STRUCTURE
 unzip_and_prepare () {
-    prompt "Do you want to unzip facebook data in this directory?"
+    prompt "Facebook data will be unzipped in current directory. Do you wish to continue?"
     
     unzip "$1"
 
@@ -31,6 +32,7 @@ unzip_and_prepare () {
     )
 }
 
+
 # FIND PATH TO DIRECTORY WITH JSONS
 path_found=0
 find_msgs_path() {
@@ -40,20 +42,30 @@ find_msgs_path() {
     fi
 }
 
+
 # REPAIR JSON BAD ENCODING
 repair_json() (
-    script=$( realpath "$1" )
-
-    cd "$msg_dir"/inbox
-    for file in $(echo {1..35}) ; do
-        "$script" $file
+    repair_script=$( realpath "$1" )
+    while [ ! -f "$repair_script" ] ; do
+        read -p $'\nRepair script not found. Please enter path to it (absolute or relative):\n> ' -e repair_script
+        repair_script=$( realpath "$repair_script" 2>/dev/null )
     done
 
-    cd "$msg_dir"/message_requests
-    for file in $(echo {1..5}) ; do
-        "$script" $file
-    done
+    find_msgs_path
+
+    cd "$msg_dir"/inbox && {
+        for file in $(echo {1..35}) ; do
+            "$repair_script" $file
+        done
+    }
+
+    cd "$msg_dir"/message_requests && {
+        for file in $(echo {1..5}) ; do
+            "$repair_script" $file
+        done
+    }
 )
+
 
 # PROCESS CHAT
 format_chat() {
@@ -137,66 +149,90 @@ format_chat() {
     LC_TIME=$lc_time_tmp
 }
 
+
 # PROCCESS ALL CHATS AND SAVE THEM TO FILES
 proccess_all_chats() {
-    prompt "Do you want to generate message files in this directory?"
+    output_dir=$( realpath "$1" )
+    while [ ! -d "$output_dir" ] ; do
+        read -p $'\nDirectory not found. Please enter path to it (absolute or relative):\n> ' -e output_dir
+        output_dir=$( realpath "$output_dir" 2>/dev/null )
+    done
+
+    find_msgs_path
 
     number_of_chats=$(( $( ls -1q "$msg_dir"/inbox | wc -l ) + $( ls -1q "$msg_dir"/message_requests | wc -l ) ))
     counter=1
 
     for folder in "$msg_dir"/{inbox,message_requests}/* ; do
+        [ -d "$folder" ] || continue
+
         echo "[$counter / $number_of_chats]:    $folder"
         counter=$(( $counter + 1 ))
 
-        format_chat "$folder" > $( echo $folder | sed -E 's_.*/([^_]+).*$_\1_' )
+        format_chat "$folder" > "$output_dir/$( echo $folder | sed -E 's_.*/([^_]+).*$_\1_' )"
     done
 
     echo -e '\033[33m\nDONE\033[0m'
 }
 
 # PROCESS FLAG OPTIONS
-while getopts ":hu:r:af:" opt ; do
+while getopts ":hp:r:a:f:" opt ; do
   case ${opt} in
     h )
-        echo "-u <filename>                     Unzip archive with facebook messages.
-                                  Prepare directory structure."
+        echo "-p <archive>                      Unzip archive with facebook data and prepare it for following use."
         echo
-        echo "-r <filename>                     Use custom or packed script to repair json bad encoding.
-                                  Path can be absolute or relative."
+        echo "-r [<script>]                     Use packed or custom script to repair json bad encoding in inbox/ and message_requests/.
+                                    * Prompt user to provide path to folder with chats.
+                                    * If called without argument, use packed script located in the same directory main script is.
+                                    * If called with argument, use passed script.
+                                    * If script is not found, prompt user to provide it."
         echo
-        echo "-a                                Process all chats and save them in current directory."
+        echo "-a [<dest_directory>]             Process all chats in inbox/ and message_requests/.
+                                    * Prompt user to provide path to folder with chats.
+                                    * If called without argument, prompt user to confirm and use current directory.
+                                    * If called with argument, use passed directory.
+                                    * If directory is not found, prompt user to provide it."
         echo
         echo "-f <chat_folder>                  Process and display chat.
-                                  Output is not saved."
+                                    * Output is not saved."
     ;;
 
-    u )
+    p )
         unzip_and_prepare "$OPTARG"
     ;;
 
     r )
-        find_msgs_path
         repair_json "$OPTARG"        
     ;;
 
     a )
-        find_msgs_path
-        proccess_all_chats
+        proccess_all_chats "$OPTARG"
     ;;
 
     f )
         format_chat "$OPTARG"
-        exit 0
     ;;
 
     \? )
-        echo 'Usage: facebook_json [-h] [-u <filename>] [-r <filename>] [-f <filename>]' >&2
+        echo 'Error: Invalid option'
+        echo 'Usage: termess [ -h ]  [ -p <archive> ]  [ -r [<script>] ]  [ -a [<dest_folder>] ]  [ -f <chat_folder> ]' >&2
         exit 1
     ;;
 
     : )
-        echo "Invalid option '$OPTARG' requires a filename" >&2
-        exit 2
+        # options with mandatory but missing arguments are processed here
+        if [ "$OPTARG" = 'r' ] ; then
+            scriptdir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )" 
+            repair_script="$scriptdir/fix_bad_unicode.rb"
+
+            repair_json "$repair_script"
+        elif [ "$OPTARG" = 'a' ] ; then
+            prompt "Files will be generated in current directory. Do you wish to continue?"
+            proccess_all_chats "$(pwd)"
+        else
+            echo "Error: Option '-$OPTARG' requires an argument" >&2
+            exit 2
+        fi
     ;;
   esac
 done
