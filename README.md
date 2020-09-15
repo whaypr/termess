@@ -1,10 +1,18 @@
 # termess
 
-Terminal application which allows you to transform Messenger JSONs into terminal-friendly files
+Facebook provides a way to download all of user's Messenger activities in JSON format. However, each chat is represented by multiple, bad-encoded files
 
-Generated files can be easily read and searched through with standard terminal tools
+Make analysis of your Messenger communication easier and more comfortable by transforming all those files into a single plain text file with one message per line
 
-## Usage
+Enables very fast and convenient searching through conversations
+
+Files are formatted to be terminal-friendly and intended for use with terminal tools, but potentially usable anywhere else
+
+
+
+![Chat example](./example.png)
+
+## USAGE
 
 ### Step 0: Help
 ```
@@ -24,7 +32,7 @@ In your current working directory:
     * prepares folder *processed_chats* for final files
     * separates all media files from actual messages in *media* folder
 
-**Skipping this step can cause the rest of the script to fail!**
+**Skipping this step can cause the rest of script to fail!**
 
 
 ### Step 2: Repair
@@ -37,7 +45,7 @@ $ termess.sh -r "path_to_repair_script"
 ```
 Uses included (or your own) script to repair bad encoding of JSON files provided by Facebook
 
-When called without argument termess will search for repair script in the same directory *termess.sh* is. If not found, user is prompted to enter custom path
+When called without argument, termess will search for repair script in the same directory *termess.sh* is. If not found, user is prompted to enter custom path
 
 **Skipping this step can cause messages will not be displayed correctly!**
 
@@ -50,9 +58,9 @@ or
 ```
 $ termess.sh -a "path_to_dir_where_files_will_be_generated"
 ```
-Creates final files that are ready for futher use of your choice
+Creates final files that are ready for further use of your choice
 
-When called without argument termess will generate files in your current working directory (after your confirmation)
+When called without argument, termess will generate files in your current working directory (after your confirmation)
 
 You can use folder *facebook/processed_chats* to save all your final files
 
@@ -63,23 +71,23 @@ Processes just one particular chat
 
 In this case output is only displayed on stdout, but can be redirected to a file by yourself
 
----
-**NOTE:**
 
-All steps can be done with single command:
+### Step 4: Enjoy
+Now you have everything prepared for your Messenger communication analysis to begin
+
+
+### Notes
+
+* All steps can be done with a single command:
 ```
 $ termess.sh -p facebook.zip -r -a facebook/processed_chats
 ```
----
-
-
-### Step 4: Enjoy
-Now you have everything needed for viewing, processing, searching through or anything else you want to do with your Messanger messages
-
-All of that comfortably right from your terminal
+* Once **-p** and **-r** are executed successfully, they are not needed anymore. You can run the script with just **-a** or **-f** option after that
 
 
 ## TODO
 
-* display some information about sent files, gifs, links, etc. instead of "null"
-* fix parsing problem in some chats
+* display some information about sent files, gifs, links, etc. rather than just "null"
+* handle newlines in messages correctly
+* message reactions
+* fix parsing problem of some chats
