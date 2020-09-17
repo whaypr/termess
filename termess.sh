@@ -1,9 +1,5 @@
 #! /bin/bash
 
-# Transforms Messenger JSONs into terminal-friendly files
-# Generated files can be easily read and searched through with standard terminal tools
-
-
 # CONTINUE PROMPT
 prompt() {
     echo -e "\n$1"
@@ -15,7 +11,7 @@ prompt() {
 }
 
 
-# UNZIP GIVEN ZIP AND CREATE DIRECTORY STRUCTURE
+# UNZIP ARCHIVE AND PREPARE DIRECTORY STRUCTURE
 unzip_and_prepare () {
     prompt "Facebook data will be unzipped in current directory. Do you wish to continue?"
     
@@ -69,84 +65,81 @@ repair_json() (
 
 # PROCESS CHAT
 format_chat() {
-    lc_time_tmp=$LC_TIME
-    work_folder=$( mktemp -d )
-    special_name='Patrik Drbal'
-    index=0
+    # NAMES
+    {
+        index=0
+        unset names
 
-    # put participant names in bash array - takes first file to find names
-    participants1=$( jq -r '.participants[].name' "$1"/message_1.json | sort )
-    while read name ; do
-        names[$index]="$name"
-        index=$(( $index + 1 ))
-    done <<<$( echo "$participants1" )
+        # put participant's names in bash array - take first file to find them
+        participants1=$( jq -r '.participants[].name' "$1"/message_1.json | sort )
+        while read name ; do
+            names[$index]="$name"
+            index=$(( $index + 1 ))
+        done <<<$( echo "$participants1" )
 
-    # put participant names in bash array - former participants
-    participants2=$( cat "$1"/* | grep -Ei '(removed .* from the group)|(left the group)' | sed -E -e 's/.*removed (.*) from the group.*/\1/' -e 's/.*"(.*) left the group.*/\1/' | sort | uniq )
-    while read name ; do
-        if [[ $name = '' ]] ; then
-            continue
-        fi
-        names[$index]="$name"
-        index=$(( $index + 1 ))
-    done <<<$( diff -u <( echo -e "$participants1" ) <( echo -e "$participants2" ) | grep -E '^\+' | sed -e 's/+//' -e 's/++.*//' | grep -v '^$' )
+        # add former participants to the array
+        participants2=$( cat "$1"/* | grep -Ei '(removed .* from the group)|(left the group)' | sed -E -e 's/.*removed (.*) from the group.*/\1/' -e 's/.*"(.*) left the group.*/\1/' | sort | uniq )
+        while read name ; do
+            if [[ $name = '' ]] ; then
+                continue
+            fi
+            names[$index]="$name"
+            index=$(( $index + 1 ))
+        done <<<$( diff -u <( echo -e "$participants1" ) <( echo -e "$participants2" ) | grep -E '^\+' | sed -e 's/+//' -e 's/++.*//' | grep -v '^$' )
 
-    # find longest name - used later in output formatting
-    max_name_len=0
-    for name in "${names[@]}" ; do 
-        name_len=${#name}
-        if [ $name_len -gt $max_name_len ] ; then
-            max_name_len=$name_len
-        fi
-    done
+        # find longest name - used later in messages alignment
+        max_name_len=0
+        for name in "${names[@]}" ; do 
+            name_len=${#name}
+            if [ $name_len -gt $max_name_len ] ; then
+                max_name_len=$name_len
+            fi
+        done
+    }
+    
+    # FORMATTING
+    {
+        special_name='Patrik Drbal' # this name has different color
+        LC_TIME=en_US.utf8 # for english date output
 
-    # concatenate everything into one file 
-    cat $( ls "$1"/* | sort -V ) > "$work_folder/chat_tmp" # cat alone does not give correct order 
+        # concatenate everything into one file - cat alone concats files in wrong order
+        cat $( ls "$1"/* | sort -V ) |
 
-    LC_TIME=en_US.utf8 # for english date output
+        # newlines handling - not further processed yet
+        sed -E 's:\\n: NEWLINEFLAG :g' |
 
-    sed -E 's:\\n: *NEW LINE* :g' "$work_folder/chat_tmp" | \
-    # display data in one row
-    jq -r '.messages[] | "\(.timestamp_ms) \(.sender_name) \(.content)"' | \
-    # reverse message order
-    tac | \
-    # from timestamp milliseconds to proper date
-    awk '{
-        $1 = strftime("%a %d %b %Y, %T", ( $1 + 500 ) / 1000 )
-        print $0
-    }' | \
-    # date and time color
-    sed -E \
-    "s/[[:alpha:]]{3} [[:digit:]]{2} [[:alpha:]]{3} [[:digit:]]{4}, [[:digit:]]{2}:[[:digit:]]{2}:[[:digit:]]{2}/$( echo -e '\033[32m&\033[0m' )/" \
-    > "$work_folder/chat"
+        # display data in one row and reverse order
+        jq -r '.messages[] | "\(.timestamp_ms) NAMEFLAG\(.sender_name)NAMEFLAG \(.content)"' | tac |
+        
+        # from timestamp to proper date
+        awk '{
+            $1 = strftime("%a %d %b %Y, %T", ( $1 + 500 ) / 1000 )
+            print $0
+        }' |
+        
+        # messages alignment
+        awk -F'NAMEFLAG' "{
+            name_length = length(\$2)
+            \$2 = \"NAMEFLAG\"\$2\"NAMEFLAG\"
 
-    # names color
-    for name in "${names[@]}" ; do 
-        if [ "$name" = "$special_name" ] ; then
-            sed -Ei "s/$name/$( echo -e '\033[31m&\033[0m' )/" "$work_folder/chat"
-        else
-            sed -Ei "s/$name/$( echo -e '\033[36m&\033[0m' )/" "$work_folder/chat"
-        fi
-    done
+            for (i = 0; i < $max_name_len - name_length; i++)
+                \$2 = \$2\" \"
+            
+            printf ( \"%s %s %s\n\", \$1, \$2, \$3 )
+        }" |
+        
+        # colors
+        awk -F'NAMEFLAG' "BEGIN { OFS=\"\" } {
+            \$1 = \"\033[32m\"substr(\$1, 1, length(\$1)-1)\"\033[0m \"
 
-    # set *** string as separator
-    for name in "${names[@]}" ; do 
-        sed -Ei "s/$name/***&***/" "$work_folder/chat"
-    done
+            if (\$2 == \"$special_name\")
+                \$2 = \"\033[31m\"\$2\"\033[0m\"
+            else
+                \$2 = \"\033[34m\"\$2\"\033[0m\"
 
-    LC_TIME=cs_CZ.UTF-8 # for correct lenght of czech symbols
-
-    # text alignment and final output
-    awk -F'***' "{
-        name_length = length(\$2)
-        for (i = 0; i < $max_name_len - name_length; i++)
-            \$2 = \$2\" \"
-
-        printf ( \"%s %s %s\n\", \$1, \$2, \$3 )
-    }" "$work_folder/chat"
-
-    rm -rf "$work_folder"
-    LC_TIME=$lc_time_tmp
+            print \$0
+        }"
+    }
 }
 
 
@@ -175,10 +168,11 @@ proccess_all_chats() {
     echo -e '\033[33m\nDONE\033[0m'
 }
 
+
 # PROCESS FLAG OPTIONS
 while getopts ":hp:r:a:f:" opt ; do
   case ${opt} in
-    h )
+    h)
         echo "-p <archive>                      Unzip archive with facebook data and prepare it for following use."
         echo
         echo "-r [<script>]                     Use packed or custom script to repair json bad encoding in inbox/ and message_requests/.
@@ -197,29 +191,21 @@ while getopts ":hp:r:a:f:" opt ; do
                                     * Output is not saved."
     ;;
 
-    p )
-        unzip_and_prepare "$OPTARG"
-    ;;
+    p) unzip_and_prepare "$OPTARG";;
 
-    r )
-        repair_json "$OPTARG"        
-    ;;
+    r) repair_json "$OPTARG";;
 
-    a )
-        proccess_all_chats "$OPTARG"
-    ;;
+    a) proccess_all_chats "$OPTARG";;
+    
+    f) format_chat "$OPTARG";;
 
-    f )
-        format_chat "$OPTARG"
-    ;;
-
-    \? )
+    \?)
         echo 'Error: Invalid option'
         echo 'Usage: termess [ -h ]  [ -p <archive> ]  [ -r [<script>] ]  [ -a [<dest_folder>] ]  [ -f <chat_folder> ]' >&2
         exit 1
     ;;
 
-    : )
+    :)
         # options with mandatory but missing arguments are processed here
         if [ "$OPTARG" = 'r' ] ; then
             scriptdir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )" 
