@@ -1,5 +1,30 @@
 #! /bin/bash
 
+# SCRIPT USAGE INFO
+help() { printf '%s\n' "
+Usage:  termess [-h]  [-p archive]  [-r [repair_script]]  [-a [dest_folder]]  [-f chat_folder]
+
+        -h     Display this help
+
+        -p     Unzip archive with facebook data and prepare it for following use
+        
+        -r     Use packed or custom script to repair json bad encoding in inbox/ and message_requests/
+                 * Prompt user to provide path to folder with chats
+                 * If called without argument, use packed script located in the same directory main script is
+                 * If called with argument, use passed script
+                 * If script is not found, prompt user to provide it
+        
+        -a     Process all chats in inbox/ and message_requests/
+                 * Prompt user to provide path to folder with chats
+                 * If called without argument, prompt user to confirm and use current directory
+                 * If called with argument, use passed directory
+                 * If directory is not found, prompt user to provide it
+        
+        -f     Process and display chat
+                 * Output is not saved
+"; }
+
+
 # CONTINUE PROMPT
 prompt() {
     echo -e "\n$1"
@@ -143,8 +168,8 @@ format_chat() {
 }
 
 
-# PROCCESS ALL CHATS AND SAVE THEM TO FILES
-proccess_all_chats() {
+# PROCESS ALL CHATS AND SAVE OUTPUT TO FILES
+format_all_chats() {
     output_dir=$( realpath "$1" )
     while [ ! -d "$output_dir" ] ; do
         read -p $'\nDirectory not found. Please enter path to it (absolute or relative):\n> ' -e output_dir
@@ -172,41 +197,14 @@ proccess_all_chats() {
 # PROCESS FLAG OPTIONS
 while getopts ":hp:r:a:f:" opt ; do
   case ${opt} in
-    h)
-        echo "-p <archive>                      Unzip archive with facebook data and prepare it for following use."
-        echo
-        echo "-r [<script>]                     Use packed or custom script to repair json bad encoding in inbox/ and message_requests/.
-                                    * Prompt user to provide path to folder with chats.
-                                    * If called without argument, use packed script located in the same directory main script is.
-                                    * If called with argument, use passed script.
-                                    * If script is not found, prompt user to provide it."
-        echo
-        echo "-a [<dest_directory>]             Process all chats in inbox/ and message_requests/.
-                                    * Prompt user to provide path to folder with chats.
-                                    * If called without argument, prompt user to confirm and use current directory.
-                                    * If called with argument, use passed directory.
-                                    * If directory is not found, prompt user to provide it."
-        echo
-        echo "-f <chat_folder>                  Process and display chat.
-                                    * Output is not saved."
-    ;;
-
-    p) unzip_and_prepare "$OPTARG";;
-
-    r) repair_json "$OPTARG";;
-
-    a) proccess_all_chats "$OPTARG";;
-    
-    f) format_chat "$OPTARG";;
-
-    \?)
-        echo 'Error: Invalid option'
-        echo 'Usage: termess [ -h ]  [ -p <archive> ]  [ -r [<script>] ]  [ -a [<dest_folder>] ]  [ -f <chat_folder> ]' >&2
-        exit 1
-    ;;
-
+    h)  help ;;
+    p)  unzip_and_prepare "$OPTARG" ;;
+    r)  repair_json "$OPTARG";;
+    a)  format_all_chats "$OPTARG" ;;
+    f)  format_chat "$OPTARG" ;;
+   \?)  echo 'Error: Invalid option' >&2 ; help >&2 ; exit 1 ;;
     :)
-        # options with mandatory but missing arguments are processed here
+        # options with optional arguments are processed here
         if [ "$OPTARG" = 'r' ] ; then
             scriptdir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )" 
             repair_script="$scriptdir/fix_bad_unicode.rb"
@@ -217,6 +215,7 @@ while getopts ":hp:r:a:f:" opt ; do
             proccess_all_chats "$(pwd)"
         else
             echo "Error: Option '-$OPTARG' requires an argument" >&2
+            help >&2
             exit 2
         fi
     ;;
