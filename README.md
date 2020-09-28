@@ -51,6 +51,7 @@ When called without argument, termess will search for repair script in the same 
 
 
 ### Step 3: Generate
+#### 3.1: All chats
 ```
 $ termess.sh -a
 ```
@@ -64,6 +65,7 @@ When called without argument, termess will generate files in your current workin
 
 You can use folder *facebook/processed_chats* to save all your final files
 
+#### 3.2: One chat
 ```
 $ termess.sh -f "path_to_one_chat_folder"
 ```
@@ -83,11 +85,12 @@ Now you have everything prepared for your Messenger communication analysis to be
 $ termess.sh -p facebook.zip -r -a facebook/processed_chats
 ```
 * Once **-p** and **-r** are executed successfully, they are not needed anymore. You can run the script with just **-a** or **-f** option after that
+* For simple output without colors and alignment, use **-sa** or **-sf** instead ('s' has to be always first)
 
 
 ## TODO
 
 * display some information about sent files, gifs, links, etc. rather than just "null"
-* handle newlines in messages correctly
+* better newline handling
 * message reactions
 * fix parsing problem of some chats

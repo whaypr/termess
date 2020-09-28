@@ -89,6 +89,9 @@ repair_json() (
 
 
 # PROCESS CHAT
+fancy=1 # toggles colors and alignment
+special_name='Patrik Drbal' # if fancy, this name has different color
+LC_TIME=en_US.utf8 # for english date output
 format_chat() {
     # NAMES
     {
@@ -124,9 +127,8 @@ format_chat() {
     
     # FORMATTING
     {
-        special_name='Patrik Drbal' # this name has different color
-        LC_TIME=en_US.utf8 # for english date output
-
+        ((fancy)) && NAMEFLAG='NAMEFLAG' || NAMEFLAG=''
+        
         # concatenate everything into one file - cat alone concats files in wrong order
         cat $( ls "$1"/* | sort -V ) |
 
@@ -134,7 +136,7 @@ format_chat() {
         sed -E 's:\\n: NEWLINEFLAG :g' |
 
         # display data in one row and reverse order
-        jq -r '.messages[] | "\(.timestamp_ms) NAMEFLAG\(.sender_name)NAMEFLAG \(.content)"' | tac |
+        jq -r ".messages[] | \"\(.timestamp_ms) $NAMEFLAG\(.sender_name)$NAMEFLAG \(.content)\"" | tac |
         
         # from timestamp to proper date
         awk '{
@@ -142,28 +144,31 @@ format_chat() {
             print $0
         }' |
         
-        # messages alignment
-        awk -F'NAMEFLAG' "{
-            name_length = length(\$2)
-            \$2 = \"NAMEFLAG\"\$2\"NAMEFLAG\"
+        # fancy switch
+        ( ! ((fancy)) && cat || {
+            # message content alignment
+            awk -F"$NAMEFLAG" "{
+                name_length = length(\$2)
+                \$2 = \"$NAMEFLAG\"\$2\"$NAMEFLAG\"
 
-            for (i = 0; i < $max_name_len - name_length; i++)
-                \$2 = \$2\" \"
+                for (i = 0; i < $max_name_len - name_length; i++)
+                    \$2 = \$2\" \"
+                
+                printf ( \"%s %s %s\n\", \$1, \$2, \$3 )
+            }" |
             
-            printf ( \"%s %s %s\n\", \$1, \$2, \$3 )
-        }" |
-        
-        # colors
-        awk -F'NAMEFLAG' "BEGIN { OFS=\"\" } {
-            \$1 = \"\033[32m\"substr(\$1, 1, length(\$1)-1)\"\033[0m \"
+            # colors
+            awk -F"$NAMEFLAG" "BEGIN { OFS=\"\" } {
+                \$1 = \"\033[32m\"substr(\$1, 1, length(\$1)-1)\"\033[0m \"
 
-            if (\$2 == \"$special_name\")
-                \$2 = \"\033[31m\"\$2\"\033[0m\"
-            else
-                \$2 = \"\033[34m\"\$2\"\033[0m\"
+                if (\$2 == \"$special_name\")
+                    \$2 = \"\033[31m\"\$2\"\033[0m\"
+                else
+                    \$2 = \"\033[34m\"\$2\"\033[0m\"
 
-            print \$0
-        }"
+                print \$0
+            }"
+        })
     }
 }
 
@@ -195,11 +200,12 @@ format_all_chats() {
 
 
 # PROCESS FLAG OPTIONS
-while getopts ":hp:r:a:f:" opt ; do
+while getopts ":hp:r:sa:f:" opt ; do
   case ${opt} in
     h)  help ;;
     p)  unzip_and_prepare "$OPTARG" ;;
-    r)  repair_json "$OPTARG";;
+    r)  repair_json "$OPTARG" ;;
+    s)  fancy=0 ;;
     a)  format_all_chats "$OPTARG" ;;
     f)  format_chat "$OPTARG" ;;
    \?)  echo 'Error: Invalid option' >&2 ; help >&2 ; exit 1 ;;
@@ -212,7 +218,7 @@ while getopts ":hp:r:a:f:" opt ; do
             repair_json "$repair_script"
         elif [ "$OPTARG" = 'a' ] ; then
             prompt "Files will be generated in current directory. Do you wish to continue?"
-            proccess_all_chats "$(pwd)"
+            format_all_chats "$(pwd)"
         else
             echo "Error: Option '-$OPTARG' requires an argument" >&2
             help >&2
