@@ -69,17 +69,13 @@ unzip_and_prepare () (
 
 
 # FIND PATH TO DIRECTORY WITH JSONS
-path_found=0
 find_msgs_path() {
-    if (( ! $path_found )) ; then
-        read -p $'\nPlease enter a path to directory containing directories with JSONs:\n> ' -i "$HOME/Downloads/facebook/messages/" -e msg_dir
-        path_found=1
-    fi
+    [ -z "${msg_dir+x}" ] && read -p $'\nPlease enter a path to directory containing directories with JSONs:\n> ' -i "$HOME/Downloads/facebook/messages/" -e msg_dir
 }
 
 
 # REPAIR JSON BAD ENCODING
-repair_json() (
+repair_json() {
     scriptdir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )" 
     repair_script=$( realpath "$scriptdir/fix_bad_unicode.rb" )
     
@@ -96,7 +92,8 @@ repair_json() (
             "$repair_script" $file
         done
     }
-)
+    cd -
+}
 
 
 # PROCESS CHAT
