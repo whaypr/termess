@@ -37,28 +37,44 @@ prompt() {
 
 
 # UNZIP ARCHIVE AND PREPARE DIRECTORY STRUCTURE
-unzip_and_prepare () {
+unzip_and_prepare () (
     prompt "Facebook data will be unzipped in current directory. Do you wish to continue?"
-    
     unzip "$1"
 
-    mkdir -p facebook/media  facebook/processed_chats
+    # rename and prepare directories
+    mv messages/ facebook/
+    cd facebook
+    mkdir messages media PROCESSED
 
-    mv messages/stickers_used facebook
-    mv messages facebook
+    declare -A name_counts
+    last_name='init'
+    # find and loop through all JSON files in facebook directory
+    while read line ; do
+        name=$( echo "$line" | sed -E 's:.*/([^_]*).*/.*$:\1:' )
 
-    (
-        cd facebook/messages/inbox
-        mv $( for folder in * ; do ls $folder | grep -qE 'photos|videos|gifs|audio|files' && echo $folder ; done ) ../../media/
-    )
-}
+        # lines are sorted -> dir is created only when $name is new chat (in $line is message_1.json)
+        if [ $( echo "$line" | sed -E 's:.*(..)\.json$:\1:' ) = "_1" ] ; then
+            # only useful when there are multiple chats with the same name
+            # first chat without number, then 1,2,3,...
+            name_counts["$last_name"]=$(( name_counts["$last_name"] + 1 ))
+            last_name="$name"
+
+            mkdir messages/"${name}${name_counts["$name"]}"
+        fi
+        
+        mv "$line" messages/"${name}${name_counts["$name"]}"/
+    done <<<$( find . -name 'message_*' | sort -V )
+
+    # inbox, filtered_threads and archived_threads now contain only media
+    mv inbox/ filtered_threads/ archived_threads/ media/
+)
 
 
 # FIND PATH TO DIRECTORY WITH JSONS
 path_found=0
 find_msgs_path() {
     if (( ! $path_found )) ; then
-        read -p $'\nPlease enter a path to directory containing inbox/ and message_requests/:\n> ' -i "$HOME/Downloads/facebook/messages/" -e msg_dir
+        read -p $'\nPlease enter a path to directory containing directories with JSONs:\n> ' -i "$HOME/Downloads/facebook/messages/" -e msg_dir
         path_found=1
     fi
 }
@@ -74,14 +90,9 @@ repair_json() (
 
     find_msgs_path
 
-    cd "$msg_dir"/inbox && {
-        for file in $(echo {1..35}) ; do
-            "$repair_script" $file
-        done
-    }
-
-    cd "$msg_dir"/message_requests && {
-        for file in $(echo {1..5}) ; do
+    # use repair script on files, maximum number of files for one chat is 40
+    cd "$msg_dir" && {
+        for file in $(echo {1..40}) ; do
             "$repair_script" $file
         done
     }
@@ -183,10 +194,10 @@ format_all_chats() {
 
     find_msgs_path
 
-    number_of_chats=$(( $( ls -1q "$msg_dir"/inbox | wc -l ) + $( ls -1q "$msg_dir"/message_requests | wc -l ) ))
+    number_of_chats=$( ls -1q "$msg_dir" | wc -l )
     counter=1
 
-    for folder in "$msg_dir"/{inbox,message_requests}/* ; do
+    for folder in "$msg_dir"/* ; do
         [ -d "$folder" ] || continue
 
         echo "[$counter / $number_of_chats]:    $folder"
