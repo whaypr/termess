@@ -2,19 +2,17 @@
 
 # SCRIPT USAGE INFO
 help() { printf '%s\n' "
-Usage:  termess [-h]  [-p archive]  [-r [repair_script]]  [-a [dest_folder]]  [-f chat_folder]
+Usage:  termess [-h]  [-p archive]  [-r]  [-a [dest_folder]]  [-f chat_folder]
 
         -h     Display this help
 
         -p     Unzip archive with facebook data and prepare it for following use
         
-        -r     Use packed or custom script to repair json bad encoding in inbox/ and message_requests/
+        -r     Use packed ruby script to repair JSON bad encoding
                  * Prompt user to provide path to folder with chats
-                 * If called without argument, use packed script located in the same directory main script is
-                 * If called with argument, use passed script
-                 * If script is not found, prompt user to provide it
+                 * If script is not found in the same directory main script is, prompt user to provide it
         
-        -a     Process all chats in inbox/ and message_requests/
+        -a     Process all chats
                  * Prompt user to provide path to folder with chats
                  * If called without argument, prompt user to confirm and use current directory
                  * If called with argument, use passed directory
@@ -82,7 +80,9 @@ find_msgs_path() {
 
 # REPAIR JSON BAD ENCODING
 repair_json() (
-    repair_script=$( realpath "$1" )
+    scriptdir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )" 
+    repair_script=$( realpath "$scriptdir/fix_bad_unicode.rb" )
+    
     while [ ! -f "$repair_script" ] ; do
         read -p $'\nRepair script not found. Please enter path to it (absolute or relative):\n> ' -e repair_script
         repair_script=$( realpath "$repair_script" 2>/dev/null )
@@ -211,23 +211,18 @@ format_all_chats() {
 
 
 # PROCESS FLAG OPTIONS
-while getopts ":hp:r:sa:f:" opt ; do
+while getopts ":hp:rsa:f:" opt ; do
   case ${opt} in
     h)  help ;;
     p)  unzip_and_prepare "$OPTARG" ;;
-    r)  repair_json "$OPTARG" ;;
+    r)  repair_json ;;
     s)  fancy=0 ;;
     a)  format_all_chats "$OPTARG" ;;
     f)  format_chat "$OPTARG" ;;
    \?)  echo 'Error: Invalid option' >&2 ; help >&2 ; exit 1 ;;
     :)
         # options with optional arguments are processed here
-        if [ "$OPTARG" = 'r' ] ; then
-            scriptdir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )" 
-            repair_script="$scriptdir/fix_bad_unicode.rb"
-
-            repair_json "$repair_script"
-        elif [ "$OPTARG" = 'a' ] ; then
+        if [ "$OPTARG" = 'a' ] ; then
             prompt "Files will be generated in current directory. Do you wish to continue?"
             format_all_chats "$(pwd)"
         else
