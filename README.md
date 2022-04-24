@@ -1,6 +1,6 @@
 # termess
 
-* [USAGE](#usage)
+* [Usage](#usage)
    * [Step 0: Help](#step-0-help)
    * [Step 1: Prepare](#step-1-prepare)
    * [Step 2: Repair](#step-2-repair)
@@ -9,11 +9,12 @@
       * [3.2: One chat](#32-one-chat)
    * [Step 4: Enjoy](#step-4-enjoy)
    * [Notes](#notes)
-* [EXAMPLE SCRIPTS](#example-scripts)
+* [Example scripts](#example-scripts)
 * [GRAPHS](#graphs)
 * [TODO](#todo)
 
 
+---
 Facebook provides a way to download all of user's Messenger activities in JSON format. However, each chat is represented by multiple, bad-encoded files
 
 Make analysis of your Messenger communication easier and more comfortable by transforming all those files into a single plain text file with one message per line
@@ -25,8 +26,8 @@ Files are formatted to be terminal-friendly and intended for use with terminal t
 ![Chat example](./images/chat.png)
 
 
-## USAGE
-
+---
+## <div align="center">Usage</div>  
 ### Step 0: Help
 ```
 $ termess.sh -h
@@ -93,11 +94,13 @@ $ termess.sh -p <facebook.zip> -r -a facebook/PROCESSED
 * For simple output without colors and alignment, use `-sa` or `-sf` instead ('s' has to be always first)
 
 
-## EXAMPLE SCRIPTS
-After you have your chats processed, you can use example scripts in `data_analysis` to analyse the chats and obtain some interesting information
+---
+## <div align="center">Example scripts</div>  
+After you have got your chats processed, you can use example scripts in `data_analysis` folder to analyse the chats and obtain some interesting information
 
 
-## GRAPHS
+---
+## <div align="center">GRAPHS</div>  
 GRAPHS module in `GRAPHS` folder lets you generate fancy graphs that display total number of either messages, or words sent in given chat per each day
 
 Python script `generate.py` is called by wrapper bash script `GRAPHS.sh`
@@ -114,7 +117,8 @@ $ /GRAPHS.sh "$HOME/Documents/facebook/PROCESSED/" 1
 ![Graph example](./images/graph.png)
 
 
-## TODO
+---
+## <div align="center">TODO</div>  
 
 * display some information about sent files, gifs, links, etc. rather than just "null"
 * message reactions
