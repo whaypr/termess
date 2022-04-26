@@ -30,7 +30,7 @@ RAW="raw/raw-"
 if [ $OPTION = 1 ]; then
     RAW="${RAW}messages"
 elif [ $OPTION = 2 ]; then
-    RAW="${RAW}word"
+    RAW="${RAW}words"
 else
     echo "Invalid option!" >&2
     exit 1

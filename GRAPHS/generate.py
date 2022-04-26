@@ -10,7 +10,7 @@ filename = sys.argv[1]
 print(f'Processing: {filename}')
 
 raw_path   = sys.argv[2]
-graph_path = "graphs/graphs-" + ("messages" if sys.argv[3] == 1 else "words")
+graph_path = "graphs/graphs-" + ("messages" if sys.argv[3] == "1" else "words")
 
 df_raw = pd.read_csv(f'{raw_path}/{filename}').set_index('datum')
 
